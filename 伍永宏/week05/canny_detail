@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+# encoding=gbk
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+
+def canny_detail(img):
+    '灰度化'
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    width,height = gray.shape
+
+    '高斯模糊'
+    sigma = 0.5
+    dim = 5
+    center = dim // 2
+
+    '高斯核'
+    kernal = np.zeros((dim,dim))
+    num1 = 1/ (2 * math.pi * sigma **2)
+    num2 = -1/(2 * sigma ** 2)
+    temp = [i - center for i in range(dim)]
+    for x in range(dim):
+        for y in range(dim):
+            kernal[x,y] = num1 * np.exp(num2 * (temp[x] ** 2 + temp[y] ** 2))
+    kernal = kernal/kernal.sum()
+
+    image_new = np.zeros(gray.shape)
+    img_pad = np.pad(gray,((center,center),(center,center)))
+    for x in range(width):
+        for y in range(height):
+            image_new[x,y] = np.sum(img_pad[x:x+dim,y:y+dim] * kernal)
+
+    plt.figure(1)
+    plt.imshow(image_new.astype(np.uint8),cmap= "gray")
+    plt.axis('off')
+
+    'soble'
+    sobel_x = np.array([[-1,0,1],[-2,0,2],[-1,0,1]])
+    sobel_y = np.array([[1,2,1],[0,0,0],[-1,-2,-1]])
+    img_pad = np.pad(image_new,((1,1),(1,1)),'constant')
+    dis_x = np.zeros(gray.shape)
+    dis_y = np.zeros(gray.shape)
+    dis_m = np.zeros(gray.shape)
+    for x in range(width):
+        for y in range(height):
+            dis_x[x,y] = np.sum(img_pad[x:x+3,y:y+3]*sobel_x)
+            dis_y[x,y] = np.sum(img_pad[x:x+3,y:y+3]*sobel_y)
+            dis_m[x,y] = np.sqrt(dis_x[x,y] ** 2 + dis_y[x,y] ** 2)
+    dis_x[dis_x == 0] = 0.00001
+    angle = dis_y/ dis_x
+
+    plt.figure(2)
+    plt.imshow(dis_m.astype(np.uint8), cmap="gray")
+    plt.axis('off')
+
+    '非极大值抑制'
+    img_after = np.zeros((width,height))
+    for x in range(1, width - 1):
+        for y in range(1, height - 1):
+            flag = False
+            '八邻域'
+            temp = dis_m[x - 1:x + 2, y - 1:y + 2]
+            if angle[x, y] >= 1:
+                tm1 = (temp[0, 2] - temp[0, 1]) / angle[x, y] + temp[0, 1]
+                tm2 = (temp[2, 1] - temp[2, 0]) / angle[x, y] + temp[2, 0]
+                flag = dis_m[x, y] >= tm1 and dis_m[x, y] >= tm2
+            elif angle[x, y] >= 0:
+                tm1 = (temp[0, 2] - temp[1, 2]) * angle[x, y] + temp[1, 2]
+                tm2 = (temp[2, 0] - temp[1, 0]) * angle[x, y] + temp[1, 0]
+                flag = dis_m[x, y] >= tm1 and dis_m[x, y] >= tm2
+            elif angle[x, y] <= -1:
+                tm1 = (temp[2, 1] - temp[2, 2]) / angle[x, y] + temp[2, 1]
+                tm2 = (temp[0, 1] - temp[0, 0]) / angle[x, y] + temp[0, 1]
+                flag = dis_m[x, y] >= tm1 and dis_m[x, y] >= tm2
+            elif angle[x, y] < 0:
+                tm1 = (temp[1, 2] - temp[2, 2]) * angle[x, y] + temp[1, 2]
+                tm2 = (temp[1, 0] - temp[0, 0]) * angle[x, y] + temp[1, 0]
+                flag = dis_m[x, y] >= tm1 and dis_m[x, y] >= tm2
+            if flag:
+                img_after[x, y] = dis_m[x, y]
+
+    plt.figure(3)
+    plt.imshow(img_after.astype(np.uint8), cmap="gray")
+    plt.axis('off')
+
+    '双阈值检测 外圈不检测'
+    low_value = dis_m.mean() * 0.5
+    high_value = low_value * 2
+    '强边缘'
+    boundary = []
+    for x in range(1,width-1):
+        for y in range(1,height-1):
+            if img_after[x,y] >= high_value:
+                img_after[x,y] = 255
+                boundary.append((x,y))
+            elif img_after[x,y] <= low_value :
+                img_after[x,y] = 0
+
+    '检测领域内是否有边缘跟强边缘相连'
+    while len(boundary) > 0 :
+        tpx,tpy = boundary.pop()
+        for x in range(tpx-1,tpx + 2):
+            for y in range(tpy-1,tpy + 2):
+                if x == tpx and y == tpy:
+                    continue
+                if low_value < img_after[x,y] < high_value :
+                    img_after[x,y] = 255
+                    boundary.append((x,y))
+
+    for x in range(width):
+        for y in range(height):
+            if 0 < img_after[x,y] < 255:
+                img_after[x,y] = 0
+
+    plt.figure(4)
+    plt.imshow(img_after.astype(np.uint8), cmap="gray")
+    plt.axis('off')
+    plt.show()
+
+if __name__ == "__main__":
+    path = "../../image/lenna.png"
+    image = cv2.imread(path)
+    canny_detail(image)
