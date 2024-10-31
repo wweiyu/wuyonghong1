@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     plt.subplot(233)
     clf = KMeans(n_clusters=3)
-    res = clf.fit_transform(x)
+    res = clf.fit_predict(x)
     x1 = [var[0] for var in x]
     y1 = [var[1] for var in x]
     plt.scatter(x1, y1, s=10, c=res, marker='x')
