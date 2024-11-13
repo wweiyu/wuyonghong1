@@ -8,7 +8,7 @@ def get_ahash(img):
     mean = np.mean(gray)
     gray[gray < mean] = 0
     gray[gray >= mean] = 1
-    str = np.array2string(gray.flatten(),separator=‘’)
+    str = np.array2string(gray.flatten(),separator='')
     return str[1:-1]
 
 '差值哈希'
@@ -16,7 +16,7 @@ def get_dhash(img):
     scl_img = cv2.resize(img,(9,8),interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(scl_img,cv2.COLOR_BGR2GRAY)
     data = np.array([[1 if gray[x][y] > gray[x][y+1] else 0 for y in range(8)] for x in range(8)])
-    str = np.array2string(data.flatten(),separator=‘’)
+    str = np.array2string(data.flatten(),separator='')
     return str[1:-1]
 
 def compare_hash(a_hash,b_hash):
